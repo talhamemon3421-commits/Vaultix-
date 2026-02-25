@@ -1,5 +1,5 @@
-const { registerUser } = require('./auth.service');
-const { registerSchema } = require('./auth.validator');
+const { registerUser ,loginUser} = require('./auth.service');
+const { registerSchema, loginSchema } = require('./auth.validator');
 
 const register = async (req, res) => {
   try {
@@ -40,4 +40,42 @@ const register = async (req, res) => {
   }
 };
 
-module.exports = { register };
+const login = async (req, res) => {
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        errors: parsed.error.issues.map(e => ({
+          field: e.path[0],
+          message: e.message,
+        })),
+      });
+    }
+
+    const { email, password } = parsed.data;
+    const result = await loginUser(email, password);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: result,
+    });
+
+  } catch (err) {
+    if (err.message === 'Invalid email or password') {
+      return res.status(401).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    console.error('Login error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+module.exports = { register, login };
