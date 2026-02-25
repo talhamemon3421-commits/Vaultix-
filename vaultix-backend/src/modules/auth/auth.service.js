@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
-const { createUser, findUserByEmail, updateLastLogin } = require('../user/user.model');
+const { createUser, findUserByEmail, updateLastLogin, findUserById } = require('../user/user.model');
 const { createRootFolder } = require('../folder/folder.model');
-const { generateTokens } = require('../../shared/utils/jwt.util');
+const { generateTokens, verifyRefreshToken } = require('../../shared/utils/jwt.util');
 const { sanitizeUser } = require('../../shared/utils/sanitize.util');
 
 const registerUser = async (name, email, password) => {
@@ -56,5 +56,32 @@ const loginUser = async (email, password) => {
   };
 };
 
+const refreshTokens = async (token) => {
+  // verify refresh token
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      throw new Error('Refresh token expired');
+    }
+    throw new Error('Invalid refresh token');
+  }
 
-module.exports = { registerUser, loginUser };
+  // check user still exists
+  const user = await findUserById(decoded.userId);
+  if (!user) {
+    throw new Error('User no longer exists');
+  }
+
+  // generate new tokens
+  const { accessToken, refreshToken } = generateTokens(user.id);
+
+  return {
+    user: sanitizeUser(user),
+    accessToken,
+    refreshToken,
+  };
+};
+
+module.exports = { registerUser, loginUser, refreshTokens };

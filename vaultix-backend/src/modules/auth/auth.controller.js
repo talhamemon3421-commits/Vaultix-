@@ -1,5 +1,5 @@
-const { registerUser ,loginUser} = require('./auth.service');
-const { registerSchema, loginSchema } = require('./auth.validator');
+const { registerUser ,loginUser, refreshTokens} = require('./auth.service');
+const { registerSchema, loginSchema, refreshTokenSchema } = require('./auth.validator');
 
 const register = async (req, res) => {
   try {
@@ -78,4 +78,46 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+const refreshToken = async (req, res) => {
+  try {
+    const parsed = refreshTokenSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        errors: parsed.error.issues.map(e => ({
+          field: e.path[0],
+          message: e.message,
+        })),
+      });
+    }
+
+    const result = await refreshTokens(parsed.data.refreshToken);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Tokens refreshed successfully',
+      data: result,
+    });
+
+  } catch (err) {
+    if (
+      err.message === 'Refresh token expired' ||
+      err.message === 'Invalid refresh token' ||
+      err.message === 'User no longer exists'
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    console.error('Refresh token error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+
+module.exports = { register, login ,refreshToken }; 

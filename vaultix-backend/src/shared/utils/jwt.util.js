@@ -17,4 +17,8 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
-module.exports = { generateTokens };
+const verifyRefreshToken = (token) => {
+  return jwt.verify(token, config.jwtRefreshSecret);
+};
+
+module.exports = { generateTokens, verifyRefreshToken };

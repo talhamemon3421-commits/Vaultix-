@@ -30,4 +30,10 @@ const loginSchema = z.object({
     .min(1, 'Password is required'),
 });
 
-module.exports = { registerSchema, loginSchema };
+const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string({ required_error: 'Refresh token is required' })
+    .min(1, 'Refresh token is required'),
+});
+
+module.exports = { registerSchema, loginSchema, refreshTokenSchema };
