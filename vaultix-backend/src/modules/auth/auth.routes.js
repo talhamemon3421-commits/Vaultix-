@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../../middleware/auth');
-const { register,login, refreshToken } = require('./auth.controller');
+const { register,login, refreshToken, logout } = require('./auth.controller');
 
 router.post('/register', register);
 router.post('/login', login);
-
+router.post('/logout', authMiddleware, logout);
 
 router.get('/me', authMiddleware, (req, res) => {
   res.json({ success: true, data: req.user });
