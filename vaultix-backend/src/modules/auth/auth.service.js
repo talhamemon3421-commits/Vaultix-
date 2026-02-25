@@ -7,6 +7,12 @@ const { pool } = require('../../infrastructure/database');
 
 const registerUser = async (name, email, password) => {
 
+  const existingUser = await findUserByEmail(email);
+  
+  if (existingUser) {
+    throw new Error('Email already in use');
+  }
+
   const hashedPassword = await bcrypt.hash(password, 12);
 
   const client = await pool.connect();
@@ -28,6 +34,8 @@ const registerUser = async (name, email, password) => {
     };
 
   } catch (err) {
+    console.log('Error message:', err.message);
+    console.log('Error code:', err.code);
     await client.query('ROLLBACK');
 
     if (err.code === '23505') {
