@@ -3,31 +3,41 @@ const { createUser, findUserByEmail, updateLastLogin, findUserById } = require('
 const { createRootFolder } = require('../folder/folder.model');
 const { generateTokens, verifyRefreshToken } = require('../../shared/utils/jwt.util');
 const { sanitizeUser } = require('../../shared/utils/sanitize.util');
+const { pool } = require('../../infrastructure/database');
 
 const registerUser = async (name, email, password) => {
-  // check if user already exists
-  const existingUser = await findUserByEmail(email);
-  if (existingUser) {
-    throw new Error('Email already in use');
-  }
 
-  // hash password
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  // create user
-  const user = await createUser(name, email, hashedPassword);
+  const client = await pool.connect();
 
-  // create root folder for user
-  await createRootFolder(user.id);
+  try {
+    console.log(`Registering user: ${email}`);
+    await client.query('BEGIN');
 
-  // generate tokens
-  const { accessToken, refreshToken } = generateTokens(user.id);
+    const user = await createUser(client, name, email, hashedPassword);
+    await createRootFolder(client, user.id);
+    console.log(`User created: ${email}`);
+    await client.query('COMMIT');
+    console.log(`User registered: ${email}`);
+    const { accessToken, refreshToken } = generateTokens(user.id);
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+    };
 
-  return {
-    user: sanitizeUser(user),
-    accessToken,
-    refreshToken,
-  };
+  } catch (err) {
+    await client.query('ROLLBACK');
+
+    if (err.code === '23505') {
+      throw new Error('Email already in use');
+    }
+
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 const loginUser = async (email, password) => {
