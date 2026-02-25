@@ -1,3 +1,4 @@
+//Entry point for the Express application. Sets up middleware, routes, and health check endpoint.
 const express = require('express');
 const routes = require('./routes');
 
