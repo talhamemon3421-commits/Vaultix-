@@ -39,4 +39,24 @@ const initiateUploadSchema = z.object({
     .max(MAX_FILES_PER_REQUEST, `Cannot upload more than ${MAX_FILES_PER_REQUEST} files at once`),
 });
 
-module.exports = { initiateUploadSchema };
+const confirmUploadSchema = z.object({
+  fileId: z
+    .string({ required_error: 'File id is required' })
+    .uuid('File id must be a valid UUID'),
+});
+
+const renameFileSchema = z.object({
+  fileName: z
+    .string({ required_error: 'File name is required' })
+    .trim()
+    .min(1, 'File name cannot be empty')
+    .max(255, 'File name cannot exceed 255 characters'),
+});
+
+const moveFileSchema = z.object({
+  folderId: z
+    .string({ required_error: 'Folder id is required' })
+    .uuid('Folder id must be a valid UUID'),
+});
+
+module.exports = { initiateUploadSchema, confirmUploadSchema, renameFileSchema, moveFileSchema };

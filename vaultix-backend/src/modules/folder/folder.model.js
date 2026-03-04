@@ -44,18 +44,18 @@ const findFolderByNameAndParent = async (userId, name, parentId) => {
   return result.rows[0];
 };
 
-const getDescendants = async (folderId) => {
+const getAllDescendantFolders = async (folderId) => {
   const result = await pool.query(
     `WITH RECURSIVE descendants AS (
-      SELECT id FROM folders WHERE id = $1
+      SELECT * FROM folders WHERE id = $1
       UNION ALL
-      SELECT f.id FROM folders f
+      SELECT f.* FROM folders f
       INNER JOIN descendants d ON f.parent_id = d.id
     )
-    SELECT id FROM descendants`,
+    SELECT * FROM descendants`,
     [folderId]
   );
-  return result.rows.map(r => r.id);
+  return result.rows;
 };
 
 const moveFolder = async (folderId, newParentId) => {
@@ -89,7 +89,7 @@ module.exports = {
   findFolderById,
   renameFolder,
   findFolderByNameAndParent,
-  getDescendants,
+  getAllDescendantFolders,
   moveFolder,
   findRootFolder,
   getFolderContents

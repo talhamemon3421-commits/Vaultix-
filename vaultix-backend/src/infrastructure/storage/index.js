@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const config = require('../../config');
 
@@ -22,4 +22,31 @@ const generatePresignedUploadUrl = async (storageKey, fileType, expiresIn = 1800
   return url;
 };
 
-module.exports = { s3Client, generatePresignedUploadUrl };
+const verifyFileInStorage = async (storageKey) => {
+  try {
+    const command = new HeadObjectCommand({
+      Bucket: config.r2.bucketName,
+      Key: storageKey,
+    });
+    const response = await s3Client.send(command);
+    return {
+      exists: true,
+      size: response.ContentLength,
+    };
+  } catch (err) {
+    if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+      return { exists: false, size: null };
+    }
+    throw err;
+  }
+};
+
+const deleteFileFromStorage = async (storageKey) => {
+  const command = new DeleteObjectCommand({
+    Bucket: config.r2.bucketName,
+    Key: storageKey,
+  });
+  await s3Client.send(command);
+};
+
+module.exports = { s3Client, generatePresignedUploadUrl, verifyFileInStorage, deleteFileFromStorage };

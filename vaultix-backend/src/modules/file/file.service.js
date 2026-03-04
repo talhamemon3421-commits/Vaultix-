@@ -1,9 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const { pool } = require('../../infrastructure/database');
-const { findFileByNameAndFolder, insertFileBatch } = require('./file.model');
-const { findFolderById } = require('../folder/folder.model');
-const { generatePresignedUploadUrl } = require('../../infrastructure/storage');
+const { findFileByNameAndFolder, insertFileBatch, 
+    markFileAsUploaded, findFileById, findFileByIdRaw, renameFile,
+    moveFile, softDeleteFile, markFileAsPermanentlyDeleted } = require('./file.model');
+const { findFolderById} = require('../folder/folder.model');
+const { generatePresignedUploadUrl
+   , verifyFileInStorage, deleteFileFromStorage} = require('../../infrastructure/storage');
 const config = require('../../config');
 
 const sanitizeFileName = (name) => {
@@ -103,4 +105,167 @@ const initiateUpload = async (userId, folderId, files) => {
   return uploads;
 };
 
-module.exports = { initiateUpload };
+const confirmUpload = async (userId, fileId) => {
+  // 1. check file exists in DB
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 2. check file belongs to user
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 3. check file is still in initiated status
+  if (file.status !== 'initiated') {
+    throw new Error('ALREADY_CONFIRMED');
+  }
+
+  // 4. verify file actually exists in R2
+  const { exists, size } = await verifyFileInStorage(file.storage_key);
+  if (!exists) {
+    throw new Error('FILE_NOT_IN_STORAGE');
+  }
+
+  // 5. mark as uploaded with actual size from R2
+  const updatedFile = await markFileAsUploaded(fileId, size);
+  return updatedFile;
+};
+
+const getFileDetails = async (userId, fileId) => {
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND'); // resource hiding
+  }
+
+  return file;
+};
+
+const renameExistingFile = async (userId, fileId, fileName) => {
+  // check file exists
+
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  if (file.deleted_at) {
+  throw new Error('FILE_ALREADY_DELETED');
+}
+
+  // check file belongs to user
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // check file is uploaded
+  if (file.status !== 'uploaded') {
+    throw new Error('FILE_NOT_UPLOADED');
+  }
+
+  // sanitize new name
+  const sanitizedName = sanitizeFileName(fileName);
+
+  // check uniqueness in same folder
+  const existing = await findFileByNameAndFolder(userId, file.folder_id, sanitizedName);
+  if (existing && existing.id !== fileId) {
+    throw new Error('NAME_CONFLICT');
+  }
+
+  const updatedFile = await renameFile(fileId, sanitizedName);
+  return updatedFile;
+};
+
+const moveExistingFile = async (userId, fileId, newFolderId) => {
+  // 1. check file exists
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  if (file.deleted_at) {
+  throw new Error('FILE_ALREADY_DELETED');
+}
+
+  // 2. check file belongs to user
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 3. check file is uploaded
+  if (file.status !== 'uploaded') {
+    throw new Error('FILE_NOT_UPLOADED');
+  }
+
+  // 4. check destination folder exists
+  const folder = await findFolderById(newFolderId);
+  if (!folder) {
+    throw new Error('FOLDER_NOT_FOUND');
+  }
+
+  // 5. check destination folder belongs to user
+  if (folder.user_id !== userId) {
+    throw new Error('FOLDER_NOT_FOUND');
+  }
+
+  // 6. check file is not already in destination
+  if (file.folder_id === newFolderId) {
+    throw new Error('ALREADY_IN_DESTINATION');
+  }
+
+  // 7. check name uniqueness in destination
+  const existing = await findFileByNameAndFolder(userId, newFolderId, file.file_name);
+  if (existing) {
+    throw new Error('NAME_CONFLICT');
+  }
+
+  const movedFile = await moveFile(fileId, newFolderId);
+  return movedFile;
+};
+
+const softDeleteExistingFile = async (userId, fileId) => {
+  // 1. check file exists
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 2. check file belongs to user
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 3. check file is not already deleted
+  if (file.deleted_at) {
+    throw new Error('FILE_ALREADY_DELETED');
+  }
+
+  const deletedFile = await softDeleteFile(fileId);
+  return deletedFile;
+};
+
+const permanentDeleteExistingFile = async (userId, fileId) => {
+  const file = await findFileByIdRaw(fileId);
+
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  if (file.permanent_deleted_at) {
+    throw new Error('FILE_ALREADY_PERMANENTLY_DELETED');
+  }
+
+  await deleteFileFromStorage(file.storage_key);
+  await markFileAsPermanentlyDeleted(fileId);
+};
+
+module.exports = { initiateUpload, confirmUpload, getFileDetails, renameExistingFile, moveExistingFile, softDeleteExistingFile, permanentDeleteExistingFile };

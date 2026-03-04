@@ -1,6 +1,6 @@
 const 
 { createNewFolder, renameExistingFolder, moveExistingFolder, 
-  getRootFolder, getFolderDetails, getFolderChildren } = 
+  getRootFolder, getFolderDetails, getFolderChildren, getAllFolderContents } = 
   require('./folder.service');
 const { createFolderSchema, renameFolderSchema, moveFolderSchema } = require('./folder.validator');
 
@@ -127,19 +127,19 @@ const getFolderById = async (req, res) => {
   }
 };
 
-const getFolderContentsHandler = async (req, res) => {
+const getAllFolderContentsHandler = async (req, res) => {
   try {
-    const contents = await getFolderChildren(req.user.userId, req.params.id);
+    const contents = await getAllFolderContents(req.user.userId, req.params.id);
     return res.status(200).json({
       success: true,
-      message: 'Folder contents retrieved successfully',
+      message: 'All folder contents retrieved successfully',
       data: contents,
     });
   } catch (err) {
-    console.error('Get folder contents error:', err);
+    console.error('Get all folder contents error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
 module.exports = { createFolder, renameFolder, moveFolderHandler
-  , getRoot, getFolderById , getFolderContentsHandler};
+  , getRoot, getFolderById , getAllFolderContentsHandler};

@@ -3,11 +3,13 @@ const {
   findFolderById,
   renameFolder,
   findFolderByNameAndParent,
-  getDescendants,
+  getAllDescendantFolders,
   moveFolder,
   findRootFolder,
   getFolderContents
 } = require('./folder.model');
+
+const { getFilesByFolderId, getFilesByFolderIds } = require('../file/file.model');
 
 const createNewFolder = async (userId, name, parentId) => {
   // check parent exists
@@ -132,20 +134,52 @@ const getFolderDetails = async (userId, folderId) => {
 };
 
 const getFolderChildren = async (userId, folderId) => {
-  // check folder exists
   const folder = await findFolderById(folderId);
   if (!folder) {
     throw new Error('Folder not found');
   }
 
-  // check folder belongs to user
   if (folder.user_id !== userId) {
     throw new Error('Access denied');
   }
 
-  const contents = await getFolderContents(folderId);
-  return contents;
+  const [folders, files] = await Promise.all([
+    getFolderContents(folderId),
+    getFilesByFolderId(folderId),
+  ]);
+
+  return { folders, files };
 };
 
-module.exports = { createNewFolder, renameExistingFolder, moveExistingFolder 
-  ,getRootFolder, getFolderDetails, getFolderChildren};
+const getAllFolderContents = async (userId, folderId) => {
+  const folder = await findFolderById(folderId);
+  if (!folder) {
+    throw new Error('Folder not found');
+  }
+
+  if (folder.user_id !== userId) {
+    throw new Error('Access denied');
+  }
+
+  // get all descendant folders recursively
+  const allFolders = await getAllDescendantFolders(folderId);
+
+  // get all files in all those folders
+  const folderIds = allFolders.map(f => f.id);
+  const allFiles = await getFilesByFolderIds(folderIds);
+
+  return {
+    folders: allFolders,
+    files: allFiles,
+  };
+};
+
+module.exports = {
+  createNewFolder,
+  renameExistingFolder,
+  moveExistingFolder,
+  getRootFolder,
+  getFolderDetails,
+  getFolderChildren,
+  getAllFolderContents,
+};
