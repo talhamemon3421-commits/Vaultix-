@@ -6,10 +6,12 @@ const {
   getAllDescendantFolders,
   moveFolder,
   findRootFolder,
-  getFolderContents
+  getFolderContents,
+  softDeleteFolder,
+  getImmediateChildren
 } = require('./folder.model');
 
-const { getFilesByFolderId, getFilesByFolderIds } = require('../file/file.model');
+const { getFilesByFolderId, getFilesByFolderIds, softDeleteFilesByFolderId } = require('../file/file.model');
 
 const createNewFolder = async (userId, name, parentId) => {
   // check parent exists
@@ -174,6 +176,48 @@ const getAllFolderContents = async (userId, folderId) => {
   };
 };
 
+const softDeleteFolderRecursive = async (folderId) => {
+  // 1. soft delete all files in this folder
+  await softDeleteFilesByFolderId(folderId);
+
+  // 2. get immediate child folders
+  const children = await getImmediateChildren(folderId);
+
+  // 3. recursively soft delete each child
+  for (const child of children) {
+    await softDeleteFolderRecursive(child.id);
+  }
+
+  // 4. soft delete this folder
+  await softDeleteFolder(folderId);
+};
+
+const deleteFolderSoft = async (userId, folderId) => {
+  // 1. check folder exists
+  const folder = await findFolderById(folderId);
+  if (!folder) {
+    throw new Error('Folder not found');
+  }
+
+  // 2. check folder belongs to user
+  if (folder.user_id !== userId) {
+    throw new Error('Access denied');
+  }
+
+  // 3. cannot delete root folder
+  if (folder.is_root) {
+    throw new Error('Root folder cannot be deleted');
+  }
+
+  // 4. check not already deleted
+  if (folder.deleted_at) {
+    throw new Error('Folder already deleted');
+  }
+
+  // 5. cascade soft delete
+  await softDeleteFolderRecursive(folderId);
+};
+
 module.exports = {
   createNewFolder,
   renameExistingFolder,
@@ -182,4 +226,5 @@ module.exports = {
   getFolderDetails,
   getFolderChildren,
   getAllFolderContents,
+  deleteFolderSoft
 };

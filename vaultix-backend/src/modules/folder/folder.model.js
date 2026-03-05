@@ -83,6 +83,23 @@ const getFolderContents = async (folderId) => {
   return result.rows;
 };
 
+const softDeleteFolder = async (folderId) => {
+  const result = await pool.query(
+    `UPDATE folders SET deleted_at = NOW() WHERE id = $1
+     RETURNING id, user_id, name, parent_id, is_root, deleted_at`,
+    [folderId]
+  );
+  return result.rows[0];
+};
+
+const getImmediateChildren = async (folderId) => {
+  const result = await pool.query(
+    `SELECT * FROM folders WHERE parent_id = $1 AND deleted_at IS NULL`,
+    [folderId]
+  );
+  return result.rows;
+};
+
 module.exports = {
   createRootFolder,
   createFolder,
@@ -92,5 +109,7 @@ module.exports = {
   getAllDescendantFolders,
   moveFolder,
   findRootFolder,
-  getFolderContents
+  getFolderContents,
+  softDeleteFolder,
+  getImmediateChildren
 };

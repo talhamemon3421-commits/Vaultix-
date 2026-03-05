@@ -1,7 +1,7 @@
 const { initiateUpload, confirmUpload, 
   getFileDetails, 
   renameExistingFile,moveExistingFile,softDeleteExistingFile,permanentDeleteExistingFile
- } = require('./file.service');
+ , downloadFile} = require('./file.service');
 const { initiateUploadSchema , confirmUploadSchema, renameFileSchema,moveFileSchema} = require('./file.validator');
 
 const ERROR_STATUS = {
@@ -260,4 +260,31 @@ const permanentDeleteFileHandler = async (req, res) => {
   }
 };
 
-module.exports = { initiateUploadHandler, confirmUploadHandler, getFileByIdHandler, renameFileHandler, moveFileHandler, softDeleteFileHandler, permanentDeleteFileHandler };
+const downloadFileHandler = async (req, res) => {
+  try {
+    const result = await downloadFile(req.user.userId, req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Download URL generated successfully',
+      data: result,
+    });
+  } catch (err) {
+    const ERROR_STATUS = {
+      FILE_NOT_FOUND: 404,
+      FILE_NOT_UPLOADED: 400,
+    };
+    const messages = {
+      FILE_NOT_FOUND: 'File not found.',
+      FILE_NOT_UPLOADED: 'File is not available for download.',
+    };
+    const status = ERROR_STATUS[err.message] || 500;
+    return res.status(status).json({
+      error: {
+        code: err.message,
+        message: messages[err.message] || err.message,
+      },
+    });
+  }
+};
+
+module.exports = { initiateUploadHandler, confirmUploadHandler, getFileByIdHandler, renameFileHandler, moveFileHandler, softDeleteFileHandler, permanentDeleteFileHandler, downloadFileHandler };

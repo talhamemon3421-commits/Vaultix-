@@ -1,11 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const { findFileByNameAndFolder, insertFileBatch, 
+const { findFileByNameAndFolder, insertFileBatchTransaction, 
     markFileAsUploaded, findFileById, findFileByIdRaw, renameFile,
-    moveFile, softDeleteFile, markFileAsPermanentlyDeleted } = require('./file.model');
+    moveFile, softDeleteFile, markFileAsPermanentlyDeleted, softDeleteFilesByFolderId } = require('./file.model');
 const { findFolderById} = require('../folder/folder.model');
 const { generatePresignedUploadUrl
-   , verifyFileInStorage, deleteFileFromStorage} = require('../../infrastructure/storage');
+   , verifyFileInStorage, deleteFileFromStorage, generatePresignedDownloadUrl} = require('../../infrastructure/storage');
 const config = require('../../config');
 
 const sanitizeFileName = (name) => {
@@ -66,19 +66,7 @@ const initiateUpload = async (userId, folderId, files) => {
   });
 
   // insert all files in transaction
-  const client = await pool.connect();
-  let insertedFiles;
-
-  try {
-    await client.query('BEGIN');
-    insertedFiles = await insertFileBatch(client, fileRecords);
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  const insertedFiles = await insertFileBatchTransaction(fileRecords);
 
   // generate presigned urls after successful db insert
   const uploads = await Promise.all(
@@ -268,4 +256,39 @@ const permanentDeleteExistingFile = async (userId, fileId) => {
   await markFileAsPermanentlyDeleted(fileId);
 };
 
-module.exports = { initiateUpload, confirmUpload, getFileDetails, renameExistingFile, moveExistingFile, softDeleteExistingFile, permanentDeleteExistingFile };
+const downloadFile = async (userId, fileId) => {
+  // 1. check file exists
+  const file = await findFileById(fileId);
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 2. check file belongs to user
+  if (file.user_id !== userId) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // 3. check file is uploaded
+  if (file.status !== 'uploaded') {
+    throw new Error('FILE_NOT_UPLOADED');
+  }
+
+  // 4. generate presigned download url
+  const downloadUrl = await generatePresignedDownloadUrl(
+    file.storage_key,
+    file.file_name,  // changed from file.original_name
+    3600
+  );
+
+  return {
+    fileId: file.id,
+    originalName: file.file_name,  // changed from file.original_name
+    fileSize: file.file_size,
+    fileType: file.file_type,
+    downloadUrl,
+    expiresIn: 3600,
+  };
+};
+
+module.exports = { initiateUpload, confirmUpload, getFileDetails, 
+  renameExistingFile, moveExistingFile, softDeleteExistingFile, permanentDeleteExistingFile, downloadFile };

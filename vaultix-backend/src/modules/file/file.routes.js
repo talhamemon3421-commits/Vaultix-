@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { initiateUploadHandler , confirmUploadHandler,
-     getFileByIdHandler, renameFileHandler, moveFileHandler, softDeleteFileHandler, permanentDeleteFileHandler} = require('./file.controller');
+     getFileByIdHandler, renameFileHandler, moveFileHandler,
+      softDeleteFileHandler, permanentDeleteFileHandler, downloadFileHandler} = require('./file.controller');
 const { authMiddleware } = require('../../middleware/auth');
 
 router.post('/initiate', authMiddleware, initiateUploadHandler);
 router.post('/confirm', authMiddleware, confirmUploadHandler);
+router.get('/:id/download', authMiddleware, downloadFileHandler);
 router.get('/:id', authMiddleware, getFileByIdHandler);
 router.patch('/:id/rename', authMiddleware, renameFileHandler);
 router.patch('/:id/move', authMiddleware, moveFileHandler);

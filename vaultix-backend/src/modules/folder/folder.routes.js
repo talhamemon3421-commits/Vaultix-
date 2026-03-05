@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createFolder, renameFolder, moveFolderHandler, 
-    getRoot, getFolderById, getAllFolderContentsHandler} = require('./folder.controller');
+    getRoot, getFolderById, getAllFolderContentsHandler, deleteFolderHandler} = require('./folder.controller');
 const { authMiddleware } = require('../../middleware/auth');
 
 router.post('/', authMiddleware, createFolder);
@@ -11,6 +11,6 @@ router.patch('/:id/move', authMiddleware, moveFolderHandler);
 router.get('/:id', authMiddleware, getFolderById);
 router.get('/:id/contents', authMiddleware, getAllFolderContentsHandler);
 router.get('/:id/all', authMiddleware, getAllFolderContentsHandler);
-
+router.delete('/:id', authMiddleware, deleteFolderHandler);
 
 module.exports = router;

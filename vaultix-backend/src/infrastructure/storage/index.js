@@ -1,4 +1,6 @@
-const { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, 
+  PutObjectCommand, HeadObjectCommand, 
+  DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const config = require('../../config');
 
@@ -49,4 +51,15 @@ const deleteFileFromStorage = async (storageKey) => {
   await s3Client.send(command);
 };
 
-module.exports = { s3Client, generatePresignedUploadUrl, verifyFileInStorage, deleteFileFromStorage };
+const generatePresignedDownloadUrl = async (storageKey, fileName, expiresIn = 3600) => {
+  const command = new GetObjectCommand({
+    Bucket: config.r2.bucketName,
+    Key: storageKey,
+    ResponseContentDisposition: `attachment; filename="${fileName}"`,
+  });
+  const url = await getSignedUrl(s3Client, command, { expiresIn });
+  return url;
+};
+
+module.exports = { s3Client, 
+  generatePresignedUploadUrl, verifyFileInStorage, deleteFileFromStorage, generatePresignedDownloadUrl };

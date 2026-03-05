@@ -1,6 +1,6 @@
 const 
 { createNewFolder, renameExistingFolder, moveExistingFolder, 
-  getRootFolder, getFolderDetails, getFolderChildren, getAllFolderContents } = 
+  getRootFolder, getFolderDetails, getFolderChildren, getAllFolderContents, deleteFolderSoft } = 
   require('./folder.service');
 const { createFolderSchema, renameFolderSchema, moveFolderSchema } = require('./folder.validator');
 
@@ -141,5 +141,18 @@ const getAllFolderContentsHandler = async (req, res) => {
   }
 };
 
+const deleteFolderHandler = async (req, res) => {
+  try {
+    await deleteFolderSoft(req.user.userId, req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Folder deleted successfully',
+    });
+  } catch (err) {
+    console.error('Delete folder error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = { createFolder, renameFolder, moveFolderHandler
-  , getRoot, getFolderById , getAllFolderContentsHandler};
+  , getRoot, getFolderById , getAllFolderContentsHandler, deleteFolderHandler};
