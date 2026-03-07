@@ -1,14 +1,6 @@
 const { pool } = require('../../infrastructure/database');
+const { createRootFolder } = require('../folder/folder.model');
 
-const createUser = async (client, name, email, hashedPassword) => {
-  const result = await client.query(
-    `INSERT INTO users (name, email, password_hash)
-     VALUES ($1, $2, $3)
-     RETURNING id, name, email, is_email_verified, created_at`,
-    [name, email, hashedPassword]
-  );
-  return result.rows[0];
-};
 
 const findUserByEmail = async (email) => {
   const result = await pool.query(
@@ -33,4 +25,32 @@ const updateLastLogin = async (id) => {
   );
 };
 
-module.exports = { createUser, findUserByEmail, findUserById, updateLastLogin };
+const registerUserTransaction = async (name, email, hashedPassword) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Insert user
+    const result = await client.query(
+      `INSERT INTO users (name, email, password_hash)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, email, is_email_verified, created_at`,
+      [name, email, hashedPassword]
+    );
+    const user = result.rows[0];
+
+    // Create root folder
+    await createRootFolder(client, user.id);
+
+    await client.query('COMMIT');
+    return user;
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { findUserByEmail, findUserById, updateLastLogin, registerUserTransaction };

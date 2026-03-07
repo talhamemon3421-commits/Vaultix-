@@ -1,6 +1,7 @@
 const 
 { createNewFolder, renameExistingFolder, moveExistingFolder, 
-  getRootFolder, getFolderDetails, getFolderChildren, getAllFolderContents, deleteFolderSoft } = 
+  getRootFolder, getFolderDetails, getFolderChildren, 
+  getAllFolderContents, deleteFolderSoft, deleteFolderPermanent } = 
   require('./folder.service');
 const { createFolderSchema, renameFolderSchema, moveFolderSchema } = require('./folder.validator');
 
@@ -153,6 +154,18 @@ const deleteFolderHandler = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+const permanentDeleteFolderHandler = async (req, res) => {
+  try {
+    await deleteFolderPermanent(req.user.userId, req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Folder permanently deleted successfully',
+    });
+  } catch (err) {
+    console.error('Permanent delete folder error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 module.exports = { createFolder, renameFolder, moveFolderHandler
-  , getRoot, getFolderById , getAllFolderContentsHandler, deleteFolderHandler};
+  , getRoot, getFolderById , getAllFolderContentsHandler, deleteFolderHandler, permanentDeleteFolderHandler};

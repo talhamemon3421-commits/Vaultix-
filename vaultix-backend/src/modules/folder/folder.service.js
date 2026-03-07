@@ -11,7 +11,8 @@ const {
   getImmediateChildren
 } = require('./folder.model');
 
-const { getFilesByFolderId, getFilesByFolderIds, softDeleteFilesByFolderId } = require('../file/file.model');
+const { getFilesByFolderId, getFilesByFolderIds, softDeleteFilesByFolderId , permanentDeleteFilesByFolderId} = require('../file/file.model');
+const { deleteFileFromStorage } = require('../../infrastructure/storage');
 
 const createNewFolder = async (userId, name, parentId) => {
   // check parent exists
@@ -218,6 +219,43 @@ const deleteFolderSoft = async (userId, folderId) => {
   await softDeleteFolderRecursive(folderId);
 };
 
+const permanentDeleteFolderRecursive = async (folderId) => {
+  // 1. get all files in this folder and permanently delete from R2
+  const files = await permanentDeleteFilesByFolderId(folderId);
+  for (const file of files) {
+    await deleteFileFromStorage(file.storage_key);
+  }
+
+  // 2. get immediate child folders
+  const children = await getImmediateChildren(folderId);
+
+  // 3. recursively permanent delete each child
+  for (const child of children) {
+    await permanentDeleteFolderRecursive(child.id);
+  }
+
+  // 4. permanent delete this folder
+  await permanentDeleteFolder(folderId);
+};
+
+const deleteFolderPermanent = async (userId, folderId) => {
+  const folder = await findFolderByIdRaw(folderId);
+
+  if (!folder) {
+    throw new Error('Folder not found');
+  }
+
+  if (folder.user_id !== userId) {
+    throw new Error('Access denied');
+  }
+
+  if (folder.is_root) {
+    throw new Error('Root folder cannot be permanently deleted');
+  }
+
+  await permanentDeleteFolderRecursive(folderId);
+};
+
 module.exports = {
   createNewFolder,
   renameExistingFolder,
@@ -226,5 +264,6 @@ module.exports = {
   getFolderDetails,
   getFolderChildren,
   getAllFolderContents,
-  deleteFolderSoft
+  deleteFolderSoft,
+  deleteFolderPermanent
 };

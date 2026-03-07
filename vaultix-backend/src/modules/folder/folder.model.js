@@ -19,10 +19,22 @@ const createFolder = async (userId, name, parentId) => {
   );
   return result.rows[0];
 };
+
 const findFolderById = async (id) => {
   const result = await pool.query(
-    `SELECT * FROM folders WHERE id = $1`,
+    `SELECT * FROM folders 
+     WHERE id = $1 
+     AND deleted_at IS NULL
+     AND permanent_deleted_at IS NULL`,
     [id]
+  );
+  return result.rows[0];
+};
+
+const findFolderByIdRaw = async (folderId) => {
+  const result = await pool.query(
+    `SELECT * FROM folders WHERE id = $1 AND permanent_deleted_at IS NULL`,
+    [folderId]
   );
   return result.rows[0];
 };
@@ -100,6 +112,13 @@ const getImmediateChildren = async (folderId) => {
   return result.rows;
 };
 
+const permanentDeleteFolder = async (folderId) => {
+  await pool.query(
+    `UPDATE folders SET permanent_deleted_at = NOW() WHERE id = $1`,
+    [folderId]
+  );
+};
+
 module.exports = {
   createRootFolder,
   createFolder,
@@ -111,5 +130,6 @@ module.exports = {
   findRootFolder,
   getFolderContents,
   softDeleteFolder,
-  getImmediateChildren
+  getImmediateChildren,
+  permanentDeleteFolder
 };

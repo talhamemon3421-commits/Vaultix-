@@ -155,10 +155,21 @@ const softDeleteFilesByFolderId = async (folderId) => {
   );
 };
 
+const permanentDeleteFilesByFolderId = async (folderId) => {
+  const result = await pool.query(
+    `UPDATE files SET permanent_deleted_at = NOW() 
+     WHERE folder_id = $1 AND permanent_deleted_at IS NULL
+     RETURNING storage_key`,
+    [folderId]
+  );
+  return result.rows;
+};
+
 module.exports = { 
   findFileByNameAndFolder, insertFileBatch, 
   findFileById, findFileByIdRaw, markFileAsUploaded, renameFile,
   getFilesByFolderId, getFilesByFolderIds, moveFile,
   softDeleteFile, permanentDeleteFile, markFileAsPermanentlyDeleted,
-  insertFileBatchTransaction, softDeleteFilesByFolderId
+  insertFileBatchTransaction, softDeleteFilesByFolderId,
+  permanentDeleteFilesByFolderId
 };
