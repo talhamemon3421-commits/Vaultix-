@@ -26,12 +26,6 @@ const createNewFolder = async (userId, name, parentId) => {
     throw new Error('Access denied');
   }
 
-  // check name uniqueness under parent
-  const existing = await findFolderByNameAndParent(userId, name, parentId);
-  if (existing) {
-    throw new Error('A folder with this name already exists here');
-  }
-
   const folder = await createFolder(userId, name, parentId);
   return folder;
 };

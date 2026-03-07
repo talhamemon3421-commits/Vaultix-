@@ -131,5 +131,6 @@ module.exports = {
   getFolderContents,
   softDeleteFolder,
   getImmediateChildren,
-  permanentDeleteFolder
+  permanentDeleteFolder,
+  findFolderByIdRaw
 };

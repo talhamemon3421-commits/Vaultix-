@@ -32,10 +32,10 @@ const registerUserTransaction = async (name, email, hashedPassword) => {
 
     // Insert user
     const result = await client.query(
-      `INSERT INTO users (name, email, password_hash)
+      `INSERT INTO users (name, email, password_hash, plan_id)
        VALUES ($1, $2, $3)
        RETURNING id, name, email, is_email_verified, created_at`,
-      [name, email, hashedPassword]
+      [name, email, hashedPassword,]
     );
     const user = result.rows[0];
 
