@@ -44,12 +44,6 @@ const renameExistingFolder = async (userId, folderId, name) => {
     throw new Error('Root folder cannot be renamed');
   }
 
-  // check name uniqueness under same parent
-  const existing = await findFolderByNameAndParent(userId, name, folder.parent_id);
-  if (existing) {
-    throw new Error('A folder with this name already exists here');
-  }
-
   const updatedFolder = await renameFolder(folderId, name);
   return updatedFolder;
 };
