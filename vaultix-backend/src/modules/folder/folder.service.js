@@ -93,12 +93,6 @@ const moveExistingFolder = async (userId, folderId, newParentId) => {
     throw new Error('Folder is already in this location');
   }
 
-  // 9. name uniqueness in destination
-  const existing = await findFolderByNameAndParent(userId, folder.name, newParentId);
-  if (existing) {
-    throw new Error('A folder with this name already exists in the destination');
-  }
-
   const movedFolder = await moveFolder(folderId, newParentId);
   return movedFolder;
 };
